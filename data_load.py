@@ -6,14 +6,14 @@ import random
 
 
 def load_source_vocab():
-    vocab = [line.split()[0] for line in codecs.open('vocab/' + params.src_vocab, 'r', 'utf-8').read().splitlines() if int(line.split()[1]) >= params.min_cnt]
+    vocab = [line.split()[0] for line in codecs.open(params.src_vocab, 'r', 'utf-8').read().splitlines() if int(line.split()[1]) >= params.min_cnt]
     word2idx = {word: idx for idx, word in enumerate(vocab)}
     idx2word = {idx: word for idx, word in enumerate(vocab)}
     return word2idx, idx2word
 
 
 def load_target_vocab():
-    vocab = [line.split()[0] for line in codecs.open('vocab/' + params.tgt_vocab, 'r', 'utf-8').read().splitlines() if int(line.split()[1]) >= params.min_cnt]
+    vocab = [line.split()[0] for line in codecs.open(params.tgt_vocab, 'r', 'utf-8').read().splitlines() if int(line.split()[1]) >= params.min_cnt]
     word2idx = {word: idx for idx, word in enumerate(vocab)}
     idx2word = {idx: word for idx, word in enumerate(vocab)}
     return word2idx, idx2word

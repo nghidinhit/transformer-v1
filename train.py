@@ -43,13 +43,18 @@ def train():
     else:
         history = {'current_batches': 0}
     current_batches = history['current_batches']
+    # if params.preload is not None:
+    #     model.load_state_dict(torch.load(params.preload))
+
     optimizer = optim.Adam(model.parameters(), lr=params.lr, betas=[0.9, 0.98], eps=1e-8)
     if params.preload is not None and os.path.exists(params.model_dir + '/optimizer.pth'):
         optimizer.load_state_dict(torch.load(params.model_dir + '/optimizer.pth'))
+
     if params.preload is not None and os.path.exists(params.model_dir + '/model_epoch_%02d.pth' % params.preload):
         model.load_state_dict(torch.load(params.model_dir + '/model_epoch_%02d.pth' % params.preload))
-
     startepoch = int(params.preload) if params.preload is not None else 1
+    # startepoch = 70
+
     for epoch in range(startepoch, params.num_epochs + 1):
         current_batch = 0
         for index, current_index in tqdm(get_batch_indices(len(source_idxes), params.batch_size)):

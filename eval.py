@@ -1,11 +1,12 @@
 import codecs
 import os
+import math
 
 import numpy as np
 
 from hyperparams import Hyperparams as params
 from data_load import load_test_data, load_source_vocab, load_target_vocab, convert_word2idx
-from nltk.translate.bleu_score import corpus_bleu
+from nltk.translate.bleu_score import corpus_bleu, sentence_bleu
 from transformer import Transformer
 from torch.autograd import Variable
 import torch
@@ -28,8 +29,9 @@ def eval():
     # Inference
     if not os.path.exists('results'):
         os.mkdir('results')
-    with open('results/model%d.txt' % params.eval_epoch, 'w') as fout:
+    with open(params.eval_result + '/model%d.txt' % params.eval_epoch, 'w') as fout:
         list_of_refs, hypotheses = [], []
+        scores = list()
         for i in range(len(source_idxes) // params.batch_size):
             # Get mini-batches
             source_idx_batches = source_idxes[i * params.batch_size : (i + 1) * params.batch_size]
@@ -48,16 +50,14 @@ def eval():
 
             # Write to file
             for source, target, pred in zip(source_text_batches, target_text_batches, preds):  # sentence-wise
-                print(pred)
-                print(idx2target)
                 got = " ".join(idx2target[idx] for idx in pred).split("</s>")[0].strip()
-                # fout.write("-   source: " + source + "\n")
-                print("-   source: " + source)
-                # fout.write("- expected: " + target + "\n")
-                print("- expected: " + target)
-                # fout.write("-      got: " + got + "\n\n")
-                print("-      got: " + got + "\n")
-                # fout.flush()
+                fout.write("-   source: " + source + "\n")
+                # print("-   source: " + source)
+                fout.write("- expected: " + target + "\n")
+                # print("- expected: " + target)
+                fout.write("-      got: " + got + "\n\n")
+                # print("-      got: " + got + "\n")
+                fout.flush()
 
                 # bleu score
                 ref = target.split()
@@ -66,9 +66,12 @@ def eval():
                     list_of_refs.append([ref])
                     hypotheses.append(hypothesis)
             # Calculate bleu score
-            # score = corpus_bleu(list_of_refs, hypotheses)
-            # fout.write("Bleu Score = " + str(100 * score))
-            break
+            score = corpus_bleu(list_of_refs, hypotheses)
+            scores.append(score)
+            fout.write("Bleu Score = " + str(100 * score))
+            print('Bleu Score: ', score)
+        fout.write('Bleu Score MEAN: ' + str(np.array(scores).mean()))
+        print('Bleu Score MEAN: ', np.array(scores).mean())
 
 
 def infer(model, source2idx, idx2target, sample):
@@ -85,7 +88,7 @@ def infer(model, source2idx, idx2target, sample):
         preds = Variable(preds_t.long())
     preds = preds.data.cpu().numpy()
 
-    got = " ".join(idx2target[idx] for idx in preds[0]).split("</s>")[0].strip()
+    got = " ".join(idx2target[idx] for idx in preds[0]).split("</s>")[0].strip().replace(' | ', '|').replace(' $ ', ' ')
     print("- source: " + sample)
     print("-    got: " + got + "\n")
 
@@ -108,7 +111,7 @@ def load_model(model_path):
 
 
 if __name__ == '__main__':
-    # eval()
+    eval()
     print('Done')
 
     model, source2idx, idx2target = load_model(params.model_dir + '/model_epoch_%02d' % params.eval_epoch + '.pth')

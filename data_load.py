@@ -80,17 +80,25 @@ def create_data(source_sents, target_sents):
     return source_idxes, target_idxes, source_text, target_text
 
 
-def load_train_data():
-    src_sents = [line for line in open(params.source_train, 'r').read().split("\n")]
-    tgt_sents = [line for line in open(params.target_train, 'r').read().split("\n")]
+def load_train_data(is_lower=False):
+    if is_lower:
+        src_sents = [line.lower() for line in open(params.source_train, 'r').read().split("\n")]
+        tgt_sents = [line.lower() for line in open(params.target_train, 'r').read().split("\n")]
+    else:
+        src_sents = [line for line in open(params.source_train, 'r').read().split("\n")]
+        tgt_sents = [line for line in open(params.target_train, 'r').read().split("\n")]
 
     source_idxes, target_idxes, source_text, target_text = create_data(src_sents, tgt_sents)
     return source_idxes, target_idxes
 
 
-def load_test_data():
-    src_sents = [line for line in open(params.source_test, 'r').read().split("\n")]
-    tgt_sents = [line for line in open(params.target_test, 'r').read().split("\n")]
+def load_test_data(is_lower=False):
+    if is_lower:
+        src_sents = [line.lower() for line in open(params.source_test, 'r').read().split("\n")]
+        tgt_sents = [line.lower() for line in open(params.target_test, 'r').read().split("\n")]
+    else:
+        src_sents = [line for line in open(params.source_test, 'r').read().split("\n")]
+        tgt_sents = [line for line in open(params.target_test, 'r').read().split("\n")]
 
     source_idxes, target_idxes, source_text, target_text = create_data(src_sents, tgt_sents)
     return source_idxes, source_text, target_text  # (1064, 150)

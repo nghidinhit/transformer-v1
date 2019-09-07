@@ -1,0 +1,10 @@
+task_diacritics_restoration: thêm dấu tiếng việt
+task_g2p_vnmese_notone_localization_sampa: 25 từ tiếng anh được việt hóa và chuyển sang xsampa dạng không dấu (không có _1, _2, ..)
+task_g2p_vnmese_withtone_localization_sampa: 25 từ tiếng anh được việt hóa và chuyển sang xsampa dạng có dấu
+task_g2p_vnmese_withtone_localization_sampa_v2: 25 từ tiếng anh được việt hóa và chuyển sang xsampa dạng có dấu, sửa format phonemes
+task_g2p_vnmese_withtone_localization_sampa_v3: 25 từ tiếng anh được việt hóa và chuyển sang xsampa dạng có dấu, sửa format phonemes, sửa các từ công ty vin
+task_g2p_vnmese_withtone_localization_syllable_sampa: 25 từ tiếng anh được việt hóa + 17k âm tiếng việt và chuyển sang xsampa dạng có dấu
+task_g2p_vnmese_withtone_syllbale_sampa: 17k âm tiết tiếng việt được chuyển sang dạn xsampa
+task_g2p_english_cmu: hơn 125k từ tiếng anh được CMU phiên âm bằng tay
+task_g2p_english_cmu_sampa: hơn 125k từ tiếng anh convert từ dạng cmu sang xsampa
+task_punct_restoration: tự động viết hoa và thêm dấu câu

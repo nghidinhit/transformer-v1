@@ -10,15 +10,19 @@ import re
 import torch
 import codecs
 import string
+from sklearn.metrics import precision_recall_fscore_support as acc
 
 
 punct_dict = {';':'.', ':':',', '!' : '.'}
 special_char_dict_v2 = {',':'COMMA', '.':'PERIOD', '?':'QUESTION'}
 
 
-def make_vocab(fpath, fname):
+def make_vocab(fpath, fname, is_lower=False):
     text = open(fpath, 'r').read()
-    words = text.split()
+    if is_lower:
+        words = text.lower().split()
+    else:
+        words = text.split()
     word2cnt = Counter(words)
     # if not os.path.exists('vocab'):
     #     os.mkdir('vocab')
@@ -89,7 +93,7 @@ def process_g2p_vnmese(f_file):
 def save_list(l, file):
     fo = open(file, 'w')
     for e in l:
-        fo.write(e.strip() + '\n')
+        fo.write(str(e).strip() + '\n')
 
 
 def preprocess(text):
@@ -517,9 +521,128 @@ def process_vin_list(f_vin, g2p_csv):
         csv_writer.writerow([key, ' '.join(list(str(key))), value])
 
 
+def load_g2p_csv(f_csv):
+    df = pd.read_csv(f_csv, delimiter='\t')
+    graph = df.graph_word.values.tolist()
+    graph_char = df.graph_char.values.tolist()
+    phonemes = df.phoneme.values.tolist()
+    save_list(graph, 'task_g2p_vnmese_withtone_localization_sampa_v3/dataset/graph_vnmese_withtone_sampa_v2.txt')
+    save_list(graph_char, 'task_g2p_vnmese_withtone_localization_sampa_v3/dataset/graph_vnmese_withtone_sampa_char_v2.txt')
+    save_list(phonemes, 'task_g2p_vnmese_withtone_localization_sampa_v3/dataset/phonemes_vnmese_withtone_sampa_v2.txt')
+
+
+def is_all_upper(word):
+    if is_special_char(word): return False
+    char = list(word)
+    for c in char:
+        if c.lower() == c and c not in punctuation:
+            return False
+
+    return True
+
+
+def is_number(word):
+    try:
+        word = int(word)
+        word = float(word)
+        return True
+    except:
+        return False
+
+
+def is_number_first(word):
+    try:
+        first_char = int(word[0])
+        return True
+    except:
+        return False
+
+
+def is_special_char(word):
+    if word == '.' or word == ',' or word == '?':
+        return True
+    return False
+
+
+def is_first_upper(word):
+    if is_number_first(word): return False
+    if is_special_char(word): return False
+    char = list(word)
+    if char[0] == char[0].upper():
+        return True
+
+    return False
+
+
+def is_period(word):
+    return '.' in word
+
+
+def is_comma(word):
+    return ',' in word
+
+
+def is_question(word):
+    return '?' in word
+
+
+def tag_sample(words):
+    label = list()
+    for i in range(len(words)):
+        if is_all_upper(words[i]) and is_period(words[i]):
+            label.append('B-UPALL-PERIOD')
+        elif is_all_upper(words[i]) and is_comma(words[i]):
+            label.append('B-UPALL-COMMA')
+        elif is_all_upper(words[i]) and is_question(words[i]):
+            label.append('B-UPALL-QUESTION')
+        elif is_first_upper(words[i]) and is_period(words[i]):
+            label.append('B-UPFIRST-PERIOD')
+        elif is_first_upper(words[i]) and is_comma(words[i]):
+            label.append('B-UPFIRST-COMMA')
+        elif is_first_upper(words[i]) and is_question(words[i]):
+            label.append('B-UPFIRST-QUESTION')
+        elif is_period(words[i]):
+            label.append('B-PERIOD')
+        elif is_comma(words[i]):
+            label.append('B-COMMA')
+        elif is_question(words[i]):
+            label.append('B-QUESTION')
+        elif is_all_upper(words[i]):
+            label.append('B-UPALL')
+        elif is_first_upper(words[i]):
+            label.append('B-UPFIRST')
+        else:
+            label.append('O')
+
+    return label
+
+
+def filter_tag(real, predict, real_tag, predict_tag):
+    real_filter, predict_filter = list(), list()
+    if len(real_tag) != len(predict_tag):
+        # print('real: ', real)
+        # print('predict: ', predict)
+        # print('len real: ', len(real))
+        # print('len predict: ', len(predict))
+        # print('---------------------------------------------------------------')
+        print('')
+    else:
+        for i in range(len(real_tag)):
+            if real_tag[i] != 'O' and predict_tag[i] != 'O':
+                real_filter.append(real_tag[i])
+                predict_filter.append(predict_tag[i])
+
+    return real_filter, predict_filter
+
+
+def cal_tag_acc(real, predict):
+    pre, rec, f1, support = acc(real, predict, average='weighted')
+    return pre, rec, f1
+
+
 if __name__ == '__main__':
-    # make_vocab(param.source_train, param.src_vocab)
-    # make_vocab(param.target_train, param.tgt_vocab)
+    make_vocab(param.source_train, param.src_vocab, is_lower=False)
+    make_vocab(param.target_train, param.tgt_vocab, is_lower=False)
 
     # graphes, phonemes = process_g2p_english('task_g2p_vnmese_syllable_sampa/dataset/all-vietnamese-syllables_17k9.XSAMPA.Mien-BAC.lex')
     # graphes, phonemes = process_g2p_vnmese('task_g2p_vnmese_withtone_localization_sampa_v2/dataset/Foreign-Lexicon-13k-6k-27k.lex')
@@ -535,8 +658,9 @@ if __name__ == '__main__':
     # lines = load_seq2seq('dataset/auto_upper_punct_seq2seq/shard_0000_auto_upper_punct_seq2seq.csv', 'src', 'tgt')
     # lines = load_seq2seq('dataset/spoken2written/norm_seq2seq.csv', 'tag', 'written', 'spoken')
     # lines = load_g2p('dataset/g2p/foreign-lexicon-13k_one_type.lex')
-    # lines = load_g2p_english('task_g2p_vnmese_withtone_localization_sampa_v2/dataset/graph_vnmese_withtone_sampa_char.txt', 'task_g2p_vnmese_withtone_localization_sampa_v2/dataset/phonemes_vnmese_withtone_sampa.txt')
-    # split_train_test(lines, 'task_g2p_vnmese_withtone_localization_sampa_v2/dataset/')
+    # lines = load_g2p_english('task_g2p_vnmese_withtone_localization_sampa_v3/dataset/graph_vnmese_withtone_sampa_char_v2.txt',
+    #                          'task_g2p_vnmese_withtone_localization_sampa_v3/dataset/phonemes_vnmese_withtone_sampa_v2.txt')
+    # split_train_test(lines, 'task_g2p_vnmese_withtone_localization_sampa_v3/dataset/')
     # read_data('dataset/norm_foreign/norm_foreign.pkl')
 
     # lines = read_csv('task_diacritics_restoration/dataset/train_tokenizer.csv', ['no_tone', 'tone'])
@@ -554,4 +678,5 @@ if __name__ == '__main__':
     # output = G2P('vin e co', lexicon[0], lexicon[1])
     # print(output)
 
-    process_vin_list('resources/vinGroup_list.txt', 'task_g2p_vnmese_withtone_localization_sampa_v3/dataset/g2p_vnmese_withtone_sampa.csv')
+    # process_vin_list('resources/vinGroup_list.txt', 'task_g2p_vnmese_withtone_localization_sampa_v3/dataset/g2p_vnmese_withtone_sampa.csv')
+    # load_g2p_csv('task_g2p_vnmese_withtone_localization_sampa_v3/dataset/g2p_vnmese_withtone_sampa_v2.csv')

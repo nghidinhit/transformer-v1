@@ -10,11 +10,12 @@ from nltk.translate.bleu_score import corpus_bleu, sentence_bleu
 from transformer import Transformer
 from torch.autograd import Variable
 import torch
+import utils
 
 
-def eval():
+def eval(is_lower=False):
     # Load data
-    source_idxes, source_texts, target_texts = load_test_data()
+    source_idxes, source_texts, target_texts = load_test_data(is_lower=is_lower)
     source2idx, idx2source = load_source_vocab()
     target2idx, idx2target = load_target_vocab()
     encoder_vocab = len(source2idx)
@@ -31,6 +32,7 @@ def eval():
         os.mkdir('results')
     with open(params.eval_result + '/model%d.txt' % params.eval_epoch, 'w') as fout:
         list_of_refs, hypotheses = [], []
+        list_of_refs_label, list_of_hypotheses_label = [], []
         scores = list()
         for i in range(len(source_idxes) // params.batch_size):
             # Get mini-batches
@@ -62,6 +64,22 @@ def eval():
                 # bleu score
                 ref = target.split()
                 hypothesis = got.split()
+
+                ref_label = utils.tag_sample(ref)
+                hypothesis_label = utils.tag_sample(hypothesis)
+
+                ref_label_filter, hypothesis_label_filter = utils.filter_tag(ref, hypothesis, ref_label, hypothesis_label)
+
+                if len(ref_label_filter) > 1:
+                    # print('ref label filter: ', ref_label_filter)
+                    # print('hypothesis label filter: ', hypothesis_label_filter)
+                    pre, rec, f1 = utils.cal_tag_acc(ref_label_filter, hypothesis_label_filter)
+                    print('pre: ', pre, ' - rec: ', rec, ' - f1: ', f1)
+
+                list_of_refs_label.append(ref_label_filter)
+                list_of_hypotheses_label.append(hypothesis_label_filter)
+                # ref = target.replace(' | ', ' ').replace(' $ ', ' ').split()
+                # hypothesis = got.replace(' | ', ' ').replace(' $ ', ' ').split()
                 if len(ref) > 3 and len(hypothesis) > 3:
                     list_of_refs.append([ref])
                     hypotheses.append(hypothesis)
@@ -111,13 +129,14 @@ def load_model(model_path):
 
 
 if __name__ == '__main__':
-    eval()
+    eval(params.is_lower)
     print('Done')
 
     model, source2idx, idx2target = load_model(params.model_dir + '/model_epoch_%02d' % params.eval_epoch + '.pth')
     while True:
         sample = input('Input your sentence: ')
-        sample = ' '.join(list(sample))
+        # sample = ' '.join(list(sample))
+        sample = sample.lower().replace('.','').replace(',','').replace('?','')
         infer(model, source2idx, idx2target, sample)
 
 

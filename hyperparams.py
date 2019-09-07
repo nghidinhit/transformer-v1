@@ -69,6 +69,17 @@ class Hyperparams:
     # model_dir = 'task_g2p_vnmese_withtone_localization_sampa_v2/model/task_g2p_vnmese_withtone_localization_syllable_sampa'
     # eval_result = 'task_g2p_vnmese_withtone_localization_sampa_v2/result'
     #
+    ''' 20k vnmese v3'''
+    # source_train = 'task_g2p_vnmese_withtone_localization_sampa_v3/dataset/train_val.src.txt'
+    # target_train = 'task_g2p_vnmese_withtone_localization_sampa_v3/dataset/train_val.tgt.txt'
+    # source_test = 'task_g2p_vnmese_withtone_localization_sampa_v3/dataset/test.src.txt'
+    # target_test = 'task_g2p_vnmese_withtone_localization_sampa_v3/dataset/test.tgt.txt'
+    #
+    # src_vocab = 'task_g2p_vnmese_withtone_localization_sampa_v3/vocab/g2p_vnmese_withtone_localizatin.src.vocab.tsv'
+    # tgt_vocab = 'task_g2p_vnmese_withtone_localization_sampa_v3/vocab/g2p_vnmese_withtone_localizatin.tgt.vocab.tsv'
+    # model_dir = 'task_g2p_vnmese_withtone_localization_sampa_v3/model/task_g2p_vnmese_withtone_localization_sampa'
+    # eval_result = 'task_g2p_vnmese_withtone_localization_sampa_v3/result'
+    #
     # # training
     # batch_size = 64 # alias = N
     # lr = 0.0001 # learning rate. In paper, learning rate is adjusted to the global step.
@@ -89,6 +100,7 @@ class Hyperparams:
 
 
     ''' task punct restoration '''
+    is_lower = False
     source_train = 'task_punct_restoration/dataset/train.src.txt'
     target_train = 'task_punct_restoration/dataset/train.tgt.txt'
     source_test = 'task_punct_restoration/dataset/test.src.txt'
@@ -100,7 +112,7 @@ class Hyperparams:
     eval_result = 'task_punct_restoration/result'
 
     # training
-    batch_size = 16 # alias = N
+    batch_size = 8 # alias = N
     lr = 0.0001 # learning rate. In paper, learning rate is adjusted to the global step.
     logdir = 'logdir' # log directory
 
@@ -114,5 +126,5 @@ class Hyperparams:
     num_heads = 8
     dropout_rate = 0.1
     sinusoid = False # If True, use sinusoid. If false, positional embedding.
-    eval_epoch = 5  # epoch of model for eval
-    preload = None  # epcho of preloaded model for resuming training
+    eval_epoch = 4  # epoch of model for eval
+    preload = 'task_punct_restoration/model/model_epoch_05.pth'

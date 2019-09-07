@@ -641,8 +641,8 @@ def cal_tag_acc(real, predict):
 
 
 if __name__ == '__main__':
-    make_vocab(param.source_train, param.src_vocab, is_lower=False)
-    make_vocab(param.target_train, param.tgt_vocab, is_lower=False)
+    make_vocab(param.source_train, param.src_vocab, param.is_lower)
+    make_vocab(param.target_train, param.tgt_vocab, param.is_lower)
 
     # graphes, phonemes = process_g2p_english('task_g2p_vnmese_syllable_sampa/dataset/all-vietnamese-syllables_17k9.XSAMPA.Mien-BAC.lex')
     # graphes, phonemes = process_g2p_vnmese('task_g2p_vnmese_withtone_localization_sampa_v2/dataset/Foreign-Lexicon-13k-6k-27k.lex')

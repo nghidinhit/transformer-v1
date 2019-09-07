@@ -13,6 +13,7 @@ import torch.nn.functional as F
 from torch.autograd import *
 import numpy as np
 from torch.nn.parameter import Parameter
+from hyperparams import Hyperparams as params
 
 
 class Embedding(nn.Module):
@@ -162,18 +163,30 @@ class MultiheadAttention(nn.Module):
         key_masks = key_masks.repeat(self.num_heads, 1)  # (h*N, T_k)
         key_masks = torch.unsqueeze(key_masks, 1).repeat(1, queries.size()[1], 1)  # (h*N, T_q, T_k)
 
-        padding = Variable(torch.ones(*outputs.size()).cuda() * (-2 ** 32 + 1))
+        if params.use_gpu:
+            padding = Variable(torch.ones(*outputs.size()).cuda() * (-2 ** 32 + 1))
+        else:
+            padding = Variable(torch.ones(*outputs.size()) * (-2 ** 32 + 1))
+
         condition = key_masks.eq(0.).float()
         outputs = padding * condition + outputs * (1. - condition)
 
         # Causality = Future blinding
         if self.causality:
-            diag_vals = torch.ones(*outputs[0, :, :].size()).cuda()  # (T_q, T_k)
+            if params.use_gpu:
+                diag_vals = torch.ones(*outputs[0, :, :].size()).cuda()  # (T_q, T_k)
+            else:
+                diag_vals = torch.ones(*outputs[0, :, :].size())  # (T_q, T_k)
+
             tril = torch.tril(diag_vals, diagonal=0)  # (T_q, T_k)
             # print(tril)
             masks = Variable(torch.unsqueeze(tril, 0).repeat(outputs.size()[0], 1, 1))  # (h*N, T_q, T_k)
 
-            padding = Variable(torch.ones(*masks.size()).cuda() * (-2 ** 32 + 1))
+            if params.use_gpu:
+                padding = Variable(torch.ones(*masks.size()).cuda() * (-2 ** 32 + 1))
+            else:
+                padding = Variable(torch.ones(*masks.size()) * (-2 ** 32 + 1))
+
             condition = masks.eq(0.).float()
             outputs = padding * condition + outputs * (1. - condition)
 

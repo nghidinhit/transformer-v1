@@ -100,16 +100,47 @@ class Hyperparams:
 
 
     ''' task punct restoration '''
-    is_lower = False
-    source_train = 'task_punct_restoration/dataset/train.src.txt'
-    target_train = 'task_punct_restoration/dataset/train.tgt.txt'
-    source_test = 'task_punct_restoration/dataset/test.src.txt'
-    target_test = 'task_punct_restoration/dataset/test.tgt.txt'
+    # is_lower = False
+    # source_train = 'task_punct_restoration/dataset/train.src.txt'
+    # target_train = 'task_punct_restoration/dataset/train.tgt.txt'
+    # source_test = 'task_punct_restoration/dataset/test.src.txt'
+    # target_test = 'task_punct_restoration/dataset/test.tgt.txt'
+    #
+    # src_vocab = 'task_punct_restoration/vocab/punct_restoration.src.vocab.tsv'
+    # tgt_vocab = 'task_punct_restoration/vocab/punct_restoration.tgt.vocab.tsv'
+    # model_dir = 'task_punct_restoration/model'
+    # eval_result = 'task_punct_restoration/result'
+    #
+    # # training
+    # batch_size = 8 # alias = N
+    # lr = 0.0001 # learning rate. In paper, learning rate is adjusted to the global step.
+    # logdir = 'logdir' # log directory
+    #
+    # # model
+    # maxlen = 100 # Maximum number of words in a sentence. alias = T.
+    #             # Feel free to increase this if you are ambitious.
+    # min_cnt = 15 # words whose occurred less than min_cnt are encoded as <UNK>.
+    # hidden_units = 512 # alias = C
+    # num_blocks = 6 # number of encoder/decoder blocks
+    # num_epochs = 100
+    # num_heads = 8
+    # dropout_rate = 0.1
+    # sinusoid = False # If True, use sinusoid. If false, positional embedding.
+    # eval_epoch = 4  # epoch of model for eval
+    # preload = 'task_punct_restoration/model/model_epoch_05.pth'
 
-    src_vocab = 'task_punct_restoration/vocab/punct_restoration.src.vocab.tsv'
-    tgt_vocab = 'task_punct_restoration/vocab/punct_restoration.tgt.vocab.tsv'
-    model_dir = 'task_punct_restoration/model'
-    eval_result = 'task_punct_restoration/result'
+
+    ''' task written2spoken'''
+    is_lower = True
+    source_train = 'task_written2spoken/dataset/train_val.src.txt'
+    target_train = 'task_written2spoken/dataset/train_val.tgt.txt'
+    source_test = 'task_written2spoken/dataset/test.src.txt'
+    target_test = 'task_written2spoken/dataset/test.tgt.txt'
+
+    src_vocab = 'task_written2spoken/vocab/task_written2spoken.src.vocab.tsv'
+    tgt_vocab = 'task_written2spoken/vocab/task_written2spoken.tgt.vocab.tsv'
+    model_dir = 'task_written2spoken/model'
+    eval_result = 'task_written2spoken/result'
 
     # training
     batch_size = 8 # alias = N
@@ -119,7 +150,7 @@ class Hyperparams:
     # model
     maxlen = 100 # Maximum number of words in a sentence. alias = T.
                 # Feel free to increase this if you are ambitious.
-    min_cnt = 15 # words whose occurred less than min_cnt are encoded as <UNK>.
+    min_cnt = 1 # words whose occurred less than min_cnt are encoded as <UNK>.
     hidden_units = 512 # alias = C
     num_blocks = 6 # number of encoder/decoder blocks
     num_epochs = 100
@@ -127,4 +158,6 @@ class Hyperparams:
     dropout_rate = 0.1
     sinusoid = False # If True, use sinusoid. If false, positional embedding.
     eval_epoch = 4  # epoch of model for eval
-    preload = 'task_punct_restoration/model/model_epoch_05.pth'
+    # preload = 'task_written2spoken/model/model_epoch_05.pth'
+    preload = None
+    use_gpu = False

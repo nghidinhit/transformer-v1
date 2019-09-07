@@ -19,6 +19,13 @@ def load_target_vocab():
     return word2idx, idx2word
 
 
+def load_vocab(vocab_file):
+    vocab = [line.split()[0] for line in codecs.open(vocab_file, 'r', 'utf-8').read().splitlines() if int(line.split()[1]) >= params.min_cnt]
+    word2idx = {word: idx for idx, word in enumerate(vocab)}
+    idx2word = {idx: word for idx, word in enumerate(vocab)}
+    return word2idx, idx2word
+
+
 def convert_word2idx(word2idx, samples):
     samples_idxes = list()
     for source_sent in samples:
@@ -41,8 +48,8 @@ def convert_word2idx(word2idx, samples):
 
 
 def create_data(source_sents, target_sents): 
-    source2idx, idx2source = load_source_vocab()
-    target2idx, idx2target = load_target_vocab()
+    source2idx, idx2source = load_vocab(params.src_vocab)
+    target2idx, idx2target = load_vocab(params.tgt_vocab)
     
     # Index
     source_idx, target_idx, source_text, target_text = [], [], [], []
@@ -80,8 +87,8 @@ def create_data(source_sents, target_sents):
     return source_idxes, target_idxes, source_text, target_text
 
 
-def load_train_data(is_lower=False):
-    if is_lower:
+def load_train_data():
+    if params.is_lower:
         src_sents = [line.lower() for line in open(params.source_train, 'r').read().split("\n")]
         tgt_sents = [line.lower() for line in open(params.target_train, 'r').read().split("\n")]
     else:
@@ -92,8 +99,8 @@ def load_train_data(is_lower=False):
     return source_idxes, target_idxes
 
 
-def load_test_data(is_lower=False):
-    if is_lower:
+def load_test_data():
+    if params.is_lower:
         src_sents = [line.lower() for line in open(params.source_test, 'r').read().split("\n")]
         tgt_sents = [line.lower() for line in open(params.target_test, 'r').read().split("\n")]
     else:
@@ -102,6 +109,36 @@ def load_test_data(is_lower=False):
 
     source_idxes, target_idxes, source_text, target_text = create_data(src_sents, tgt_sents)
     return source_idxes, source_text, target_text  # (1064, 150)
+
+
+def load_data(src, tgt, num_sample):
+    # if params.is_lower:
+    #     src_sents = [line.lower() for line in open(src, 'r').read().split("\n")]
+    #     tgt_sents = [line.lower() for line in open(tgt, 'r').read().split("\n")]
+    # else:
+    #     src_sents = [line for line in open(src, 'r').read().split("\n")]
+    #     tgt_sents = [line for line in open(tgt, 'r').read().split("\n")]
+
+    src_sents, tgt_sents = list(), list()
+
+    for line in open(src, 'r').read().split("\n"):
+        if len(src_sents) < num_sample:
+            if params.is_lower:
+                src_sents.append(line.lower())
+            else:
+                src_sents.append(line)
+        else: break
+
+    for line in open(tgt, 'r').read().split("\n"):
+        if len(tgt_sents) < num_sample:
+            if params.is_lower:
+                tgt_sents.append(line.lower())
+            else:
+                tgt_sents.append(line)
+        else: break
+
+    source_idxes, target_idxes, source_text, target_text = create_data(src_sents, tgt_sents)
+    return source_idxes, target_idxes
 
 
 def get_batch_indices(total_length, batch_size):

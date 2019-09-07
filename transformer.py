@@ -6,125 +6,133 @@ liweihfyz@sjtu.edu.cn
 https://www.github.cim/leviswind/transformer-pytorch
 '''
 
-from __future__ import print_function
+from modules import *
+from torch.autograd import *
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import *
-import numpy as np
-from modules import *
-from hyperparams import Hyperparams as hp
 
 
 class Transformer(nn.Module):
-    def __init__(self, hp_, enc_voc, dec_voc):
-        '''Attention is all you nedd. https://arxiv.org/abs/1706.03762
+    def __init__(self, params, encoder_vocab, decoder_vocab):
+        '''Attention is all you need. https://arxiv.org/abs/1706.03762
         Args:
             hp: Hyper Parameters
-            enc_voc: vocabulary size of encoder language
-            dec_voc: vacabulary size of decoder language
+            encoder_vocab: vocabulary size of encoder language
+            decoder_vocab: vacabulary size of decoder language
         '''
         super(Transformer, self).__init__()
-        self.hp = hp_
+        self.params = params
 
-        self.enc_voc = enc_voc
-        self.dec_voc = dec_voc
+        self.encoder_vocab = encoder_vocab
+        self.decoder_vocab = decoder_vocab
 
         # encoder
-        self.enc_emb = embedding(self.enc_voc, self.hp.hidden_units, scale=True)
+        self.encoder_embedding = Embedding(self.encoder_vocab, self.params.hidden_units, scale=True)
 
-        if self.hp.sinusoid:
-            self.enc_positional_encoding = positional_encoding(num_units=self.hp.hidden_units,
-                                                               zeros_pad=False,
-                                                               scale=False)
+        if self.params.sinusoid:
+            self.encoder_positional_encoding = PositionalEncoding(emb_dim=self.params.hidden_units, zeros_pad=False, scale=False)
         else:
-            self.enc_positional_encoding = embedding(self.hp.maxlen, self.hp.hidden_units, zeros_pad=False, scale=False)
-        self.enc_dropout = nn.Dropout(self.hp.dropout_rate)
-        for i in range(self.hp.num_blocks):
-            self.__setattr__('enc_self_attention_%d' % i, multihead_attention(num_units=self.hp.hidden_units,
-                                                                              num_heads=self.hp.num_heads,
-                                                                              dropout_rate=self.hp.dropout_rate,
-                                                                              causality=False))
-            self.__setattr__('enc_feed_forward_%d' % i, feedforward(self.hp.hidden_units,
-                                                                    [4 * self.hp.hidden_units,
-                                                                     self.hp.hidden_units]))
+            self.encoder_positional_encoding = Embedding(self.params.maxlen, self.params.hidden_units, zeros_pad=False, scale=False)
+        self.encoder_dropout = nn.Dropout(self.params.dropout_rate)
+        for i in range(self.params.num_blocks):
+            self.__setattr__('enc_self_attention_%d' % i, MultiheadAttention(hidden_dim=self.params.hidden_units,
+                                                                             num_heads=self.params.num_heads,
+                                                                             dropout_rate=self.params.dropout_rate,
+                                                                             causality=False))
+            self.__setattr__('enc_feed_forward_%d' % i, FeedForward(self.params.hidden_units,
+                                                                    [4 * self.params.hidden_units,
+                                                                     self.params.hidden_units]))
 
         # decoder
-        self.dec_emb = embedding(self.dec_voc, self.hp.hidden_units, scale=True)
-        if self.hp.sinusoid:
-            self.dec_positional_encoding = positional_encoding(num_units=self.hp.hidden_units,
-                                                               zeros_pad=False,
-                                                               scale=False)
+        self.decoder_embedding = Embedding(self.decoder_vocab, self.params.hidden_units, scale=True)
+        if self.params.sinusoid:
+            self.decoder_positional_encoding = PositionalEncoding(emb_dim=self.params.hidden_units, zeros_pad=False, scale=False)
         else:
-            self.dec_positional_encoding = embedding(self.hp.maxlen, self.hp.hidden_units, zeros_pad=False, scale=False)
+            self.decoder_positional_encoding = Embedding(self.params.maxlen, self.params.hidden_units, zeros_pad=False, scale=False)
 
-        self.dec_dropout = nn.Dropout(self.hp.dropout_rate)
-        for i in range(self.hp.num_blocks):
+        self.decoder_dropout = nn.Dropout(self.params.dropout_rate)
+        for i in range(self.params.num_blocks):
             self.__setattr__('dec_self_attention_%d' % i,
-                             multihead_attention(num_units=self.hp.hidden_units,
-                                                 num_heads=self.hp.num_heads,
-                                                 dropout_rate=self.hp.dropout_rate,
-                                                 causality=True))
+                             MultiheadAttention(hidden_dim=self.params.hidden_units,
+                                                num_heads=self.params.num_heads,
+                                                dropout_rate=self.params.dropout_rate,
+                                                causality=True))
             self.__setattr__('dec_vanilla_attention_%d' % i,
-                             multihead_attention(num_units=self.hp.hidden_units,
-                                                 num_heads=self.hp.num_heads,
-                                                 dropout_rate=self.hp.dropout_rate,
-                                                 causality=False))
-            self.__setattr__('dec_feed_forward_%d' % i, feedforward(self.hp.hidden_units,
-                                                                    [4 * self.hp.hidden_units,
-                                                                     self.hp.hidden_units]))
-        self.logits_layer = nn.Linear(self.hp.hidden_units, self.dec_voc)
-        self.label_smoothing = label_smoothing()
+                             MultiheadAttention(hidden_dim=self.params.hidden_units,
+                                                num_heads=self.params.num_heads,
+                                                dropout_rate=self.params.dropout_rate,
+                                                causality=False))
+            self.__setattr__('dec_feed_forward_%d' % i, FeedForward(self.params.hidden_units,
+                                                                    [4 * self.params.hidden_units,
+                                                                     self.params.hidden_units]))
+        self.logits_layer = nn.Linear(self.params.hidden_units, self.decoder_vocab)
+        self.label_smoothing = LabelSmoothing()
         # self.losslayer = nn.CrossEntropyLoss(reduce=False)
 
-    def forward(self, x, y):
+    def forward(self, source_batch, target_batch):
         # define decoder inputs
-        self.decoder_inputs = torch.cat([Variable(torch.ones(y[:, :1].size()).cuda() * 2).long(), y[:, :-1]], dim=-1)  # 2:<S>
+        if self.params.use_gpu:
+            self.decoder_inputs = torch.cat([Variable(torch.ones(target_batch[:, :1].size()).cuda() * 2).long(), target_batch[:, :-1]], dim=-1)  # 2:<s>
+        else:
+            self.decoder_inputs = torch.cat([Variable(torch.ones(target_batch[:, :1].size()) * 2).long(), target_batch[:, :-1]], dim=-1)  # 2:<s>
 
         # Encoder
-        self.enc = self.enc_emb(x)
+        self.encoder_embeded = self.encoder_embedding(source_batch)
         # Positional Encoding
-        if self.hp.sinusoid:
-            self.enc += self.enc_positional_encoding(x)
+        if self.params.sinusoid:
+            self.encoder_embeded += self.encoder_positional_encoding(source_batch)
         else:
-            self.enc += self.enc_positional_encoding(
-                Variable(torch.unsqueeze(torch.arange(0, x.size()[1]), 0).repeat(x.size(0), 1).long().cuda()))
-        self.enc = self.enc_dropout(self.enc)
+            if self.params.use_gpu:
+                self.encoder_embeded += self.encoder_positional_encoding(
+                    Variable(torch.unsqueeze(torch.arange(0, source_batch.size()[1]), 0).repeat(source_batch.size(0), 1).long().cuda()))
+            else:
+                self.encoder_embeded += self.encoder_positional_encoding(
+                    Variable(torch.unsqueeze(torch.arange(0, source_batch.size()[1]), 0).repeat(source_batch.size(0), 1).long()))
+        self.encoder_embeded = self.encoder_dropout(self.encoder_embeded)
         # Blocks
-        for i in range(self.hp.num_blocks):
-            self.enc = self.__getattr__('enc_self_attention_%d' % i)(self.enc, self.enc, self.enc)
+        for i in range(self.params.num_blocks):
+            self.encoder_embeded = self.__getattr__('enc_self_attention_%d' % i)(self.encoder_embeded, self.encoder_embeded, self.encoder_embeded)
             # Feed Forward
-            self.enc = self.__getattr__('enc_feed_forward_%d' % i)(self.enc)
+            self.encoder_embeded = self.__getattr__('enc_feed_forward_%d' % i)(self.encoder_embeded)
         # Decoder
-        self.dec = self.dec_emb(self.decoder_inputs)
+        self.decoder_embedded = self.decoder_embedding(self.decoder_inputs)
         # Positional Encoding
-        if self.hp.sinusoid:
-            self.dec += self.dec_positional_encoding(self.decoder_inputs)
+        if self.params.sinusoid:
+            self.decoder_embedded += self.decoder_positional_encoding(self.decoder_inputs)
         else:
-            self.dec += self.dec_positional_encoding(
-                Variable(torch.unsqueeze(torch.arange(0, self.decoder_inputs.size()[1]), 0).repeat(self.decoder_inputs.size(0), 1).long().cuda()))
+            if self.params.use_gpu:
+                self.decoder_embedded += self.decoder_positional_encoding(
+                    Variable(torch.unsqueeze(torch.arange(0, self.decoder_inputs.size()[1]), 0).repeat(self.decoder_inputs.size(0), 1).long().cuda()))
+            else:
+                self.decoder_embedded += self.decoder_positional_encoding(
+                    Variable(torch.unsqueeze(torch.arange(0, self.decoder_inputs.size()[1]), 0).repeat(self.decoder_inputs.size(0), 1).long()))
 
         # Dropout
-        self.dec = self.dec_dropout(self.dec)
+        self.decoder_embedded = self.decoder_dropout(self.decoder_embedded)
         # Blocks
-        for i in range(self.hp.num_blocks):
+        for i in range(self.params.num_blocks):
             # self-attention
-            self.dec = self.__getattr__('dec_self_attention_%d' % i)(self.dec, self.dec, self.dec)
+            self.decoder_embedded = self.__getattr__('dec_self_attention_%d' % i)(self.decoder_embedded, self.decoder_embedded, self.decoder_embedded)
             # vanilla attention
-            self.dec = self.__getattr__('dec_vanilla_attention_%d' % i)(self.dec, self.enc, self.enc)
+            self.decoder_embedded = self.__getattr__('dec_vanilla_attention_%d' % i)(self.decoder_embedded, self.encoder_embeded, self.encoder_embeded)
             # feed forward
-            self.dec = self.__getattr__('dec_feed_forward_%d' % i)(self.dec)
+            self.decoder_embedded = self.__getattr__('dec_feed_forward_%d' % i)(self.decoder_embedded)
 
         # Final linear projection
-        self.logits = self.logits_layer(self.dec)
-        self.probs = F.softmax(self.logits, dim=-1).view(-1, self.dec_voc)
+        self.logits = self.logits_layer(self.decoder_embedded)
+        self.probs = F.softmax(self.logits, dim=-1).view(-1, self.decoder_vocab)
         _, self.preds = torch.max(self.logits, -1)
-        self.istarget = (1. - y.eq(0.).float()).view(-1)
-        self.acc = torch.sum(self.preds.eq(y).float().view(-1) * self.istarget) / torch.sum(self.istarget)
+        self.istarget = (1. - target_batch.eq(0.).float()).view(-1)
+        self.acc = torch.sum(self.preds.eq(target_batch).float().view(-1) * self.istarget) / torch.sum(self.istarget)
 
         # Loss
-        self.y_onehot = torch.zeros(self.logits.size()[0] * self.logits.size()[1], self.dec_voc).cuda()
-        self.y_onehot = Variable(self.y_onehot.scatter_(1, y.view(-1, 1).data, 1))
+        if self.params.use_gpu:
+            self.y_onehot = torch.zeros(self.logits.size()[0] * self.logits.size()[1], self.decoder_vocab).cuda()
+        else:
+            self.y_onehot = torch.zeros(self.logits.size()[0] * self.logits.size()[1], self.decoder_vocab)
+
+        self.y_onehot = Variable(self.y_onehot.scatter_(1, target_batch.view(-1, 1).data, 1))
 
         self.y_smoothed = self.label_smoothing(self.y_onehot)
 

@@ -5,7 +5,7 @@ import math
 import numpy as np
 
 from hyperparams import Hyperparams as params
-from data_load import load_test_data, load_source_vocab, load_target_vocab, convert_word2idx
+from data_load import load_test_data, load_source_vocab, load_target_vocab, convert_word2idx, load_vocab, load_data
 from nltk.translate.bleu_score import corpus_bleu, sentence_bleu
 from transformer import Transformer
 from torch.autograd import Variable
@@ -13,11 +13,11 @@ import torch
 import utils
 
 
-def eval(is_lower=False):
+def eval():
     # Load data
-    source_idxes, source_texts, target_texts = load_test_data(is_lower=is_lower)
-    source2idx, idx2source = load_source_vocab()
-    target2idx, idx2target = load_target_vocab()
+    source_idxes, source_texts, target_texts = load_data(params.source_test, params.target_test)
+    source2idx, idx2source = load_vocab(params.src_vocab)
+    target2idx, idx2target = load_vocab(params.tgt_vocab)
     encoder_vocab = len(source2idx)
     decoder_vocab = len(target2idx)
 
@@ -113,8 +113,8 @@ def infer(model, source2idx, idx2target, sample):
 
 def load_model(model_path):
     # Load data
-    source2idx, idx2source = load_source_vocab()
-    target2idx, idx2target = load_target_vocab()
+    source2idx, idx2source = load_vocab(params.src_vocab)
+    target2idx, idx2target = load_vocab(params.tgt_vocab)
     encoder_vocab = len(source2idx)
     decoder_vocab = len(target2idx)
 
@@ -129,7 +129,7 @@ def load_model(model_path):
 
 
 if __name__ == '__main__':
-    eval(params.is_lower)
+    eval()
     print('Done')
 
     model, source2idx, idx2target = load_model(params.model_dir + '/model_epoch_%02d' % params.eval_epoch + '.pth')

@@ -1,25 +1,23 @@
-import os
-from hyperparams import Hyperparams as param
+from sklearn.metrics import precision_recall_fscore_support as acc
+from hyperparams import Hyperparams as params
+from sklearn.utils import shuffle
 from collections import Counter
 from string import punctuation
-from sklearn.utils import shuffle
 from nltk import word_tokenize
 import pandas as pd
+import codecs
+import torch
 import csv
 import re
-import torch
-import codecs
-import string
-from sklearn.metrics import precision_recall_fscore_support as acc
 
 
 punct_dict = {';':'.', ':':',', '!' : '.'}
 special_char_dict_v2 = {',':'COMMA', '.':'PERIOD', '?':'QUESTION'}
 
 
-def make_vocab(fpath, fname, is_lower=False):
+def make_vocab(fpath, fname):
     text = open(fpath, 'r').read()
-    if is_lower:
+    if params.is_lower:
         words = text.lower().split()
     else:
         words = text.split()
@@ -641,8 +639,8 @@ def cal_tag_acc(real, predict):
 
 
 if __name__ == '__main__':
-    make_vocab(param.source_train, param.src_vocab, param.is_lower)
-    make_vocab(param.target_train, param.tgt_vocab, param.is_lower)
+    make_vocab(params.source_train, params.src_vocab)
+    make_vocab(params.target_train, params.tgt_vocab)
 
     # graphes, phonemes = process_g2p_english('task_g2p_vnmese_syllable_sampa/dataset/all-vietnamese-syllables_17k9.XSAMPA.Mien-BAC.lex')
     # graphes, phonemes = process_g2p_vnmese('task_g2p_vnmese_withtone_localization_sampa_v2/dataset/Foreign-Lexicon-13k-6k-27k.lex')

@@ -13,27 +13,26 @@ import torch.nn.functional as F
 from torch.autograd import *
 import numpy as np
 from torch.nn.parameter import Parameter
-from hyperparams import Hyperparams as params
 
 
-class Embedding(nn.Module):
+class embedding(nn.Module):
 
-    def __init__(self, vocab_size, emb_dim, zeros_pad=True, scale=True):
+    def __init__(self, vocab_size, num_units, zeros_pad=True, scale=True):
         '''Embeds a given Variable.
         Args:
           vocab_size: An int. Vocabulary size.
-          emb_dim: An int. Number of embedding hidden units.
+          num_units: An int. Number of embedding hidden units.
           zero_pad: A boolean. If True, all the values of the fist row (id 0)
             should be constant zeros.
           scale: A boolean. If True. the outputs is multiplied by sqrt num_units.
         '''
-        super(Embedding, self).__init__()
+        super(embedding, self).__init__()
         self.vocab_size = vocab_size
-        self.emb_dim = emb_dim
+        self.num_units = num_units
         self.zeros_pad = zeros_pad
         self.scale = scale
-        self.lookup_table = Parameter(torch.Tensor(vocab_size, emb_dim))
-        self.embed = nn.Embedding(vocab_size, emb_dim)
+        self.lookup_table = Parameter(torch.Tensor(vocab_size, num_units))
+        self.embed = nn.Embedding(vocab_size, num_units)
         nn.init.xavier_normal_(self.lookup_table.data)
         if self.zeros_pad:
             self.lookup_table.data[0, :].fill_(0)
@@ -46,12 +45,12 @@ class Embedding(nn.Module):
         # outputs = self.embed(inputs, self.lookup_table, self.padding_idx, None, 2, False, False)  # copied from torch.nn.modules.sparse.py
         outputs = self.embed(inputs)
         if self.scale:
-            outputs = outputs * (self.emb_dim ** 0.5)
+            outputs = outputs * (self.num_units ** 0.5)
 
         return outputs
 
 
-class LayerNorm(nn.Module):
+class layer_normalization(nn.Module):
 
     def __init__(self, features, epsilon=1e-8):
         '''Applies layer normalization.
@@ -59,7 +58,7 @@ class LayerNorm(nn.Module):
         Args:
           epsilon: A floating number. A very small number for preventing ZeroDivision Error.
         '''
-        super(LayerNorm, self).__init__()
+        super(layer_normalization, self).__init__()
         self.epsilon = epsilon
         self.gamma = nn.Parameter(torch.ones(features))
         self.beta = nn.Parameter(torch.zeros(features))
@@ -70,18 +69,18 @@ class LayerNorm(nn.Module):
         return self.gamma * (x - mean) / (std + self.epsilon) + self.beta
 
 
-class PositionalEncoding(nn.Module):
+class positional_encoding(nn.Module):
 
-    def __init__(self, emb_dim, zeros_pad=True, scale=True):
+    def __init__(self, num_units, zeros_pad=True, scale=True):
         '''Sinusoidal Positional_Encoding.
 
         Args:
-          emb_dim: Output dimensionality
+          num_units: Output dimensionality
           zero_pad: Boolean. If True, all the values of the first row (id = 0) should be constant zero
           scale: Boolean. If True, the output will be multiplied by sqrt num_units(check details from paper)
         '''
-        super(PositionalEncoding, self).__init__()
-        self.emb_dim = emb_dim
+        super(positional_encoding, self).__init__()
+        self.num_units = num_units
         self.zeros_pad = zeros_pad
         self.scale = scale
 
@@ -91,7 +90,9 @@ class PositionalEncoding(nn.Module):
 
         # First part of the PE function: sin and cos argument
         position_ind = Variable(torch.unsqueeze(torch.arange(0, T), 0).repeat(N, 1).long())
-        position_enc = torch.Tensor([[pos / np.power(10000, 2. * i / self.emb_dim) for i in range(self.emb_dim)] for pos in range(T)])
+        position_enc = torch.Tensor([
+            [pos / np.power(10000, 2. * i / self.num_units) for i in range(self.num_units)]
+            for pos in range(T)])
 
         # Second part, apply the cosine to even columns and sin to odds.
         position_enc[:, 0::2] = torch.sin(position_enc[:, 0::2])  # dim 2i
@@ -101,42 +102,44 @@ class PositionalEncoding(nn.Module):
         lookup_table = Variable(position_enc)
 
         if self.zeros_pad:
-            lookup_table = torch.cat((Variable(torch.zeros(1, self.emb_dim)), lookup_table[1:, :]), 0)
+            lookup_table = torch.cat((Variable(torch.zeros(1, self.num_units)),
+                                     lookup_table[1:, :]), 0)
             padding_idx = 0
         else:
             padding_idx = -1
 
-        outputs = self._backend.Embedding.apply(position_ind, lookup_table, padding_idx, None, 2, False, False)   # copied from torch.nn.modules.sparse.py
+        outputs = self._backend.Embedding.apply(
+            position_ind, lookup_table, padding_idx, None, 2, False, False)   # copied from torch.nn.modules.sparse.py
 
         if self.scale:
-            outputs = outputs * self.emb_dim ** 0.5
+            outputs = outputs * self.num_units ** 0.5
 
         return outputs
 
 
-class MultiheadAttention(nn.Module):
+class multihead_attention(nn.Module):
 
-    def __init__(self, hidden_dim, num_heads=8, dropout_rate=0, causality=False):
+    def __init__(self, num_units, num_heads=8, dropout_rate=0, causality=False):
         '''Applies multihead attention.
 
         Args:
-            hidden_dim: A scalar. Attention size.
+            num_units: A scalar. Attention size.
             dropout_rate: A floating point number.
             causality: Boolean. If true, units that reference the future are masked.
             num_heads: An int. Number of heads.
         '''
-        super(MultiheadAttention, self).__init__()
-        self.hidden_dim = hidden_dim
+        super(multihead_attention, self).__init__()
+        self.num_units = num_units
         self.num_heads = num_heads
         self.dropout_rate = dropout_rate
         self.causality = causality
-        self.Q_proj = nn.Sequential(nn.Linear(self.hidden_dim, self.hidden_dim), nn.ReLU())
-        self.K_proj = nn.Sequential(nn.Linear(self.hidden_dim, self.hidden_dim), nn.ReLU())
-        self.V_proj = nn.Sequential(nn.Linear(self.hidden_dim, self.hidden_dim), nn.ReLU())
+        self.Q_proj = nn.Sequential(nn.Linear(self.num_units, self.num_units), nn.ReLU())
+        self.K_proj = nn.Sequential(nn.Linear(self.num_units, self.num_units), nn.ReLU())
+        self.V_proj = nn.Sequential(nn.Linear(self.num_units, self.num_units), nn.ReLU())
 
         self.output_dropout = nn.Dropout(p=self.dropout_rate)
 
-        self.layer_norm = LayerNorm(self.hidden_dim)
+        self.normalization = layer_normalization(self.num_units)
 
     def forward(self, queries, keys, values):
         # keys, values: same shape of [N, T_k, C_k]
@@ -163,30 +166,18 @@ class MultiheadAttention(nn.Module):
         key_masks = key_masks.repeat(self.num_heads, 1)  # (h*N, T_k)
         key_masks = torch.unsqueeze(key_masks, 1).repeat(1, queries.size()[1], 1)  # (h*N, T_q, T_k)
 
-        if params.use_gpu:
-            padding = Variable(torch.ones(*outputs.size()).cuda() * (-2 ** 32 + 1))
-        else:
-            padding = Variable(torch.ones(*outputs.size()) * (-2 ** 32 + 1))
-
+        padding = Variable(torch.ones(*outputs.size()).cuda() * (-2 ** 32 + 1))
         condition = key_masks.eq(0.).float()
         outputs = padding * condition + outputs * (1. - condition)
 
         # Causality = Future blinding
         if self.causality:
-            if params.use_gpu:
-                diag_vals = torch.ones(*outputs[0, :, :].size()).cuda()  # (T_q, T_k)
-            else:
-                diag_vals = torch.ones(*outputs[0, :, :].size())  # (T_q, T_k)
-
+            diag_vals = torch.ones(*outputs[0, :, :].size()).cuda()  # (T_q, T_k)
             tril = torch.tril(diag_vals, diagonal=0)  # (T_q, T_k)
             # print(tril)
             masks = Variable(torch.unsqueeze(tril, 0).repeat(outputs.size()[0], 1, 1))  # (h*N, T_q, T_k)
 
-            if params.use_gpu:
-                padding = Variable(torch.ones(*masks.size()).cuda() * (-2 ** 32 + 1))
-            else:
-                padding = Variable(torch.ones(*masks.size()) * (-2 ** 32 + 1))
-
+            padding = Variable(torch.ones(*masks.size()).cuda() * (-2 ** 32 + 1))
             condition = masks.eq(0.).float()
             outputs = padding * condition + outputs * (1. - condition)
 
@@ -212,37 +203,37 @@ class MultiheadAttention(nn.Module):
         outputs += queries
 
         # Normalize
-        outputs = self.layer_norm(outputs)  # (N, T_q, C)
+        outputs = self.normalization(outputs)  # (N, T_q, C)
 
         return outputs
 
 
-class FeedForward(nn.Module):
+class feedforward(nn.Module):
 
-    def __init__(self, in_channels, hidden_dim=[2048, 512]):
+    def __init__(self, in_channels, num_units=[2048, 512]):
         '''Point-wise feed forward net.
 
         Args:
           in_channels: a number of channels of inputs
-          hidden_dim: A list of two integers.
+          num_units: A list of two integers.
         '''
-        super(FeedForward, self).__init__()
+        super(feedforward, self).__init__()
         self.in_channels = in_channels
-        self.hidden_dim = hidden_dim
+        self.num_units = num_units
 
         # nn.Linear is faster than nn.Conv1d
         self.conv = False
         if self.conv:
-            params = {'in_channels': self.in_channels, 'out_channels': self.hidden_dim[0],
+            params = {'in_channels': self.in_channels, 'out_channels': self.num_units[0],
                       'kernel_size': 1, 'stride': 1, 'bias': True}
             self.conv1 = nn.Sequential(nn.Conv1d(**params), nn.ReLU())
-            params = {'in_channels': self.hidden_dim[0], 'out_channels': self.hidden_dim[1],
+            params = {'in_channels': self.num_units[0], 'out_channels': self.num_units[1],
                       'kernel_size': 1, 'stride': 1, 'bias': True}
             self.conv2 = nn.Conv1d(**params)
         else:
-            self.conv1 = nn.Sequential(nn.Linear(self.in_channels, self.hidden_dim[0]), nn.ReLU())
-            self.conv2 = nn.Linear(self.hidden_dim[0], self.hidden_dim[1])
-        self.layer_norm = LayerNorm(self.in_channels)
+            self.conv1 = nn.Sequential(nn.Linear(self.in_channels, self.num_units[0]), nn.ReLU())
+            self.conv2 = nn.Linear(self.num_units[0], self.num_units[1])
+        self.normalization = layer_normalization(self.in_channels)
 
     def forward(self, inputs):
         if self.conv:
@@ -255,14 +246,14 @@ class FeedForward(nn.Module):
 
         # Layer normalization
         if self.conv:
-            outputs = self.layer_norm(outputs.permute(0, 2, 1))
+            outputs = self.normalization(outputs.permute(0, 2, 1))
         else:
-            outputs = self.layer_norm(outputs)
+            outputs = self.normalization(outputs)
 
         return outputs
 
 
-class LabelSmoothing(nn.Module):
+class label_smoothing(nn.Module):
 
     def __init__(self, epsilon=0.1):
         '''Applies label smoothing. See https://arxiv.org/abs/1512.00567.
@@ -270,7 +261,7 @@ class LabelSmoothing(nn.Module):
         Args:
             epsilon: Smoothing rate.
         '''
-        super(LabelSmoothing, self).__init__()
+        super(label_smoothing, self).__init__()
         self.epsilon = epsilon
 
     def forward(self, inputs):
@@ -281,8 +272,8 @@ class LabelSmoothing(nn.Module):
 if __name__ == '__main__':
     num_units = 512
     inputs = Variable(torch.randn((100, 10)))
-    outputs = PositionalEncoding(num_units)(inputs)
-    outputs = MultiheadAttention(num_units)(outputs, outputs, outputs)
-    outputs = FeedForward(num_units)(outputs)
+    outputs = positional_encoding(num_units)(inputs)
+    outputs = multihead_attention(num_units)(outputs, outputs, outputs)
+    outputs = feedforward(num_units)(outputs)
 
     print(outputs)

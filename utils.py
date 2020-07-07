@@ -1,5 +1,5 @@
 import os
-from hyperparams import Hyperparams as param
+from hyperparams import Hyperparams as params
 from collections import Counter
 from string import punctuation
 from sklearn.utils import shuffle
@@ -9,17 +9,18 @@ import csv
 import re
 import torch
 import codecs
+import copy
 import string
-from sklearn.metrics import precision_recall_fscore_support as acc
+from sklearn.metrics import precision_recall_fscore_support
 
 
 punct_dict = {';':'.', ':':',', '!' : '.'}
-special_char_dict_v2 = {',':'COMMA', '.':'PERIOD', '?':'QUESTION'}
+special_char_dict_v2 = {',': 'COMMA', '.': 'PERIOD', '?': 'QUESTION'}
 
 
-def make_vocab(fpath, fname, is_lower=False):
+def make_vocab(fpath, fname):
     text = open(fpath, 'r').read()
-    if is_lower:
+    if params.is_lower:
         words = text.lower().split()
     else:
         words = text.split()
@@ -51,6 +52,26 @@ def process_g2p_english(f_file):
         graph = re.sub('\(1\)', '', graph)
         graph = re.sub('\(2\)', '', graph)
         graph = re.sub('\(3\)', '', graph)
+        if graph not in graphes:
+            graphes.append(graph)
+            phonemes.append(phoneme)
+
+    return graphes, phonemes
+
+
+def process_g2p_english_anhKhoa(f_file):
+    graphes, phonemes = list(), list()
+    fo = open(f_file, 'r')
+    count = 0
+
+    for line in fo:
+        count += 1
+        if count % 1000:
+            print('count = %d' % count)
+        graph = ' '.join(line.split('\t')[0])
+        phoneme = line.split('\t')[1]
+        phoneme = phoneme.replace(' ', ' $ ').replace('|', ' | ')
+
         if graph not in graphes:
             graphes.append(graph)
             phonemes.append(phoneme)
@@ -636,21 +657,75 @@ def filter_tag(real, predict, real_tag, predict_tag):
 
 
 def cal_tag_acc(real, predict):
-    pre, rec, f1, support = acc(real, predict, average='weighted')
+    pre, rec, f1, support = precision_recall_fscore_support(real, predict, average='weighted')
     return pre, rec, f1
 
 
+def prepare_label_data(src_path, tgt_path, label_path):
+    tgt_path_filter = tgt_path.replace('.tgt.txt', '.filter.tgt.txt')
+    src_path_filter = src_path.replace('.src.txt', '.filter.src.txt')
+    fo_src = open(src_path, 'r')
+    fo_tgt = open(tgt_path, 'r')
+    fo_label = open(label_path, 'w')
+    fo_src_filter = open(src_path_filter, 'w')
+    fo_tgt_filter = open(tgt_path_filter, 'w')
+    target_labels = list()
+    count = 0
+    for line_src, line_tgt in zip(fo_src, fo_tgt):
+        source_text = copy.deepcopy(line_tgt)
+        line_tgt = remove_multi_punct(line_tgt)
+        source_words = line_src.split()
+        target_words = line_tgt.split()
+        if target_words[0].strip() == '.' or target_words[0].strip() == ',' or target_words[0].strip() == '?':
+            del target_words[0]
+        if len(source_words) == len(target_words):
+            count += 1
+            print('\r count = ', count, end='\r')
+            target_label = tag_sample(target_words)
+            target_labels.append(target_label)
+            fo_label.write(' '.join(target_label) + '\n')
+            fo_src_filter.write(' '.join(source_words).strip() + '\n')
+            fo_tgt_filter.write(' '.join(target_words).strip() + '\n')
+        # else:
+        #     print(line_src.strip() + '\n')
+        #     print(source_text.strip() + '\n')
+        #     print(line_tgt.strip() + '\n')
+        #     print('--------------------------------------')
+
+    return target_labels
+
+
+def remove_multi_punct(sentence):
+    sentence = re.sub('(\.\s)+\.', '.', sentence)
+    sentence = re.sub('(,\s)+,', ',', sentence)
+    sentence = re.sub('(\?\s)+\?', '?', sentence)
+    sentence = re.sub(',\s\.', '.', sentence)
+    sentence = re.sub(',\s\?', '?', sentence)
+    sentence = re.sub('\.\s,', ',', sentence)
+    sentence = re.sub('\.\s\?', '?', sentence)
+    sentence = re.sub('\?\s\.', '.', sentence)
+    sentence = re.sub('\?\s,', ',', sentence)
+    return sentence
+
+
 if __name__ == '__main__':
-    make_vocab(param.source_train, param.src_vocab, param.is_lower)
-    make_vocab(param.target_train, param.tgt_vocab, param.is_lower)
+    '''Step 3: build vocab'''
+    # concat train and val before building
+    make_vocab(params.source_train, params.src_vocab)
+    make_vocab(params.target_train, params.tgt_vocab)
 
-    # graphes, phonemes = process_g2p_english('task_g2p_vnmese_syllable_sampa/dataset/all-vietnamese-syllables_17k9.XSAMPA.Mien-BAC.lex')
+    ex = 'ex4'
+    file_name = '04_10kForeign_27kForeign_125kEnglish_17kVNSylable.lex'
+    '''Step 1: save graphes, phonemes to file'''
+    # graphes, phonemes = process_g2p_english('task_g2p_anhKhoa/dataset/ex1/01_baseline_vnsylable_only_17k.txt')
     # graphes, phonemes = process_g2p_vnmese('task_g2p_vnmese_withtone_localization_sampa_v2/dataset/Foreign-Lexicon-13k-6k-27k.lex')
-    # save_list(graphes, 'task_g2p_vnmese_withtone_localization_sampa_v2/dataset/graph_vnmese_withtone_sampa.txt')
-    # save_list(phonemes, 'task_g2p_vnmese_withtone_localization_sampa_v2/dataset/phonemes_vnmese_withtone_sampa.txt')
-    # save_csv(graphes, phonemes, 'task_g2p_vnmese_withtone_localization_sampa_v2/dataset/g2p_vnmese_withtone_sampa.csv')
-    # word2char('task_g2p_vnmese_withtone_localization_sampa_v2/dataset/graph_vnmese_withtone_sampa.txt', 'task_g2p_vnmese_withtone_localization_sampa_v2/dataset/graph_vnmese_withtone_sampa_char.txt')
+    # graphes, phonemes = process_g2p_english_anhKhoa('task_g2p_anhKhoa_v2/dataset/' + ex + '/' + file_name)
+    # save_list(graphes, 'task_g2p_anhKhoa_v2/dataset/' + ex + '/' + file_name + '_graph.txt')
+    # save_list(phonemes, 'task_g2p_anhKhoa_v2/dataset/' + ex + '/' + file_name + '_phonemes.txt')
+    # save_csv(graphes, phonemes, 'task_g2p_anhKhoa/dataset/ex1/01_baseline_vnsylable_only_17k.csv')
+    # word2char('task_spoken2written/dataset/val.tgt.txt', 'task_spoken2written/dataset/val_char.tgt.txt')
 
+    '''Step 2: Split train test'''
     # lines = load_tone_data('corpora/addtone/train_tokenizer.csv')
     # lines = load_foreign_words('dataset/norm_foreign/foreign.csv')
     # lines, line_errors = load_foreign_words_v2('dataset/norm_foreign/foreign.csv')
@@ -660,7 +735,9 @@ if __name__ == '__main__':
     # lines = load_g2p('dataset/g2p/foreign-lexicon-13k_one_type.lex')
     # lines = load_g2p_english('task_g2p_vnmese_withtone_localization_sampa_v3/dataset/graph_vnmese_withtone_sampa_char_v2.txt',
     #                          'task_g2p_vnmese_withtone_localization_sampa_v3/dataset/phonemes_vnmese_withtone_sampa_v2.txt')
-    # split_train_test(lines, 'task_g2p_vnmese_withtone_localization_sampa_v3/dataset/')
+    # lines = load_g2p_english('task_g2p_anhKhoa_v2/dataset/' + ex + '/' + file_name + '_graph.txt',
+    #                          'task_g2p_anhKhoa_v2/dataset/' + ex + '/' + file_name + '_phonemes.txt')
+    # split_train_test(lines, 'task_g2p_anhKhoa_v2/dataset/' + ex + '/')
     # read_data('dataset/norm_foreign/norm_foreign.pkl')
 
     # lines = read_csv('task_diacritics_restoration/dataset/train_tokenizer.csv', ['no_tone', 'tone'])
@@ -680,3 +757,8 @@ if __name__ == '__main__':
 
     # process_vin_list('resources/vinGroup_list.txt', 'task_g2p_vnmese_withtone_localization_sampa_v3/dataset/g2p_vnmese_withtone_sampa.csv')
     # load_g2p_csv('task_g2p_vnmese_withtone_localization_sampa_v3/dataset/g2p_vnmese_withtone_sampa_v2.csv')
+
+    # prepare_label_data(params.source_train, params.target_train, params.target_train_label)
+    # prepare_label_data(params.source_test, params.target_test, params.target_test_label)
+    # prepare_label_data(params.source_val, params.target_val, params.target_val_label)
+    # print(remove_multi_punct('Băng đô, mũ len, balo, Bình sữa Hàn Quốc, Mỹ cực HOT. . . .'))

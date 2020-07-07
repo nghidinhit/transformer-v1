@@ -8,3 +8,9 @@ task_g2p_vnmese_withtone_syllbale_sampa: 17k âm tiết tiếng việt được 
 task_g2p_english_cmu: hơn 125k từ tiếng anh được CMU phiên âm bằng tay
 task_g2p_english_cmu_sampa: hơn 125k từ tiếng anh convert từ dạng cmu sang xsampa
 task_punct_restoration: tự động viết hoa và thêm dấu câu
+
+
+transformer: origin code
+transformer_v2: rename many variables
+transformer_ex3: decode label + word
+transformer_ex4: decode with input is source_text and no <s>, copy encoder_embedded to decoder_embedded

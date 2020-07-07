@@ -1,17 +1,27 @@
+<<<<<<< HEAD
 import os
 from hyperparams import Hyperparams as params
+=======
+from sklearn.metrics import precision_recall_fscore_support as acc
+from hyperparams import Hyperparams as params
+from sklearn.utils import shuffle
+>>>>>>> bbd2e415b2a3d77373566070220af43518d3adef
 from collections import Counter
 from string import punctuation
-from sklearn.utils import shuffle
 from nltk import word_tokenize
 import pandas as pd
+import codecs
+import torch
 import csv
 import re
+<<<<<<< HEAD
 import torch
 import codecs
 import copy
 import string
 from sklearn.metrics import precision_recall_fscore_support
+=======
+>>>>>>> bbd2e415b2a3d77373566070220af43518d3adef
 
 
 punct_dict = {';':'.', ':':',', '!' : '.'}
@@ -661,6 +671,7 @@ def cal_tag_acc(real, predict):
     return pre, rec, f1
 
 
+<<<<<<< HEAD
 def prepare_label_data(src_path, tgt_path, label_path):
     tgt_path_filter = tgt_path.replace('.tgt.txt', '.filter.tgt.txt')
     src_path_filter = src_path.replace('.src.txt', '.filter.src.txt')
@@ -706,7 +717,6 @@ def remove_multi_punct(sentence):
     sentence = re.sub('\?\s\.', '.', sentence)
     sentence = re.sub('\?\s,', ',', sentence)
     return sentence
-
 
 if __name__ == '__main__':
     '''Step 3: build vocab'''
